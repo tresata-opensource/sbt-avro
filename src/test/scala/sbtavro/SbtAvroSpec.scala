@@ -3,8 +3,7 @@ package sbtavro
 import java.io.File
 
 import org.apache.avro.Schema
-import org.apache.avro.compiler.specific.SpecificCompiler
-import org.apache.avro.generic.GenericData.StringType
+import org.apache.avro.specific.SpecificCompiler
 import org.specs2.mutable.Specification
 
 /**
@@ -21,7 +20,6 @@ class SbtAvroSpec extends Specification {
   }
 
   "It should be possible to compile types depending on others if source files are provided in right order" >> {
-    val parser = new Schema.Parser()
     val packageDir = new File(targetDir, "com/cavorite")
     val aJavaFile = new File(packageDir, "A.java")
     val bJavaFile = new File(packageDir, "B.java")
@@ -31,10 +29,7 @@ class SbtAvroSpec extends Specification {
     cJavaFile.delete()
 
     for(schemaFile <- SbtAvro.sortSchemaFiles(sourceFiles)) {
-      val schemaAvr = parser.parse(schemaFile)
-      val compiler = new SpecificCompiler(schemaAvr)
-      compiler.setStringType(StringType.CharSequence)
-      compiler.compileToDestination(null, targetDir)
+      SpecificCompiler.compileSchema(schemaFile, targetDir)
     }
 
     aJavaFile.isFile must beTrue

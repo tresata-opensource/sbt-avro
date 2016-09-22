@@ -5,9 +5,8 @@ import scala.collection.mutable
 import scala.io.Source
 
 import org.apache.avro.{Protocol, Schema}
-import org.apache.avro.compiler.idl.Idl
-import org.apache.avro.compiler.specific.SpecificCompiler
-import org.apache.avro.generic.GenericData.StringType
+import org.apache.avro.idl.Idl
+import org.apache.avro.specific.SpecificCompiler
 
 import sbt._
 import sbt.ConfigKey.configurationToKey
@@ -23,20 +22,12 @@ object SbtAvro extends AutoPlugin {
 
     val avroConfig = config("avro")
 
-    val stringType = SettingKey[String]("string-type", "Type for representing strings. " +
-      "Possible values: CharSequence, String, Utf8. Default: CharSequence.")
-
-    val fieldVisibility = SettingKey[String]("field-visibiliy", "Field Visibility for the properties" +
-      "Possible values: private, public, public_deprecated. Default: public_deprecated.")
-
     val generate = TaskKey[Seq[File]]("generate", "Generate the Java sources for the Avro files.")
 
     lazy val avroSettings: Seq[Setting[_]] = inConfig(avroConfig)(Seq[Setting[_]](
       sourceDirectory <<= (sourceDirectory in Compile) { _ / "avro" },
       javaSource <<= (sourceManaged in Compile) { _ / "compiled_avro" },
-      stringType := "CharSequence",
-      fieldVisibility := "public_deprecated",
-      version := "1.7.3",
+      version := "1.4.1",
 
       managedClasspath <<= (classpathTypes, update) map { (ct, report) =>
         Classpaths.managedJars(avroConfig, ct, report)
@@ -46,7 +37,7 @@ object SbtAvro extends AutoPlugin {
       sourceGenerators in Compile <+= (generate in avroConfig),
       managedSourceDirectories in Compile <+= (javaSource in avroConfig),
       cleanFiles <+= (javaSource in avroConfig),
-      libraryDependencies <+= (version in avroConfig)("org.apache.avro" % "avro-compiler" % _),
+      libraryDependencies <+= (version in avroConfig)("org.apache.avro" % "avro" % _),
       ivyConfigurations += avroConfig
     )
   }
@@ -60,28 +51,15 @@ object SbtAvro extends AutoPlugin {
   // a group of settings that are automatically added to projects.
   override val projectSettings = avroSettings
 
-  private[this] def compile(srcDir: File, target: File, log: Logger, stringTypeName: String, fieldVisibilityName: String) = {
-    val stringType = StringType.valueOf(stringTypeName);
-    log.info("Avro compiler using stringType=%s".format(stringType));
-
-    val schemaParser = new Schema.Parser();
-
+  private[this] def compile(srcDir: File, target: File, log: Logger) = {
     for (idl <- (srcDir ** "*.avdl").get) {
       log.info("Compiling Avro IDL %s".format(idl))
-      val parser = new Idl(idl.asFile)
-      val protocol = Protocol.parse(parser.CompilationUnit.toString)
-      val compiler = new SpecificCompiler(protocol)
-      compiler.setStringType(stringType)
-      compiler.setFieldVisibility(SpecificCompiler.FieldVisibility.valueOf(fieldVisibilityName.toUpperCase))
-      compiler.compileToDestination(null, target)
+      SpecificCompiler.compileProtocol(idl.asFile, target)
     }
 
     for (schemaFile <- sortSchemaFiles((srcDir ** "*.avsc").get)) {
       log.info("Compiling Avro schema %s".format(schemaFile))
-      val schemaAvr = schemaParser.parse(schemaFile)
-      val compiler = new SpecificCompiler(schemaAvr)
-      compiler.setStringType(stringType)
-      compiler.compileToDestination(null, target)
+      SpecificCompiler.compileSchema(schemaFile, target)
     }
 
     for (protocol <- (srcDir ** "*.avpr").get) {
@@ -95,14 +73,12 @@ object SbtAvro extends AutoPlugin {
   private def sourceGeneratorTask = (streams,
     sourceDirectory in avroConfig,
     javaSource in avroConfig,
-    stringType,
-    fieldVisibility,
     cacheDirectory) map {
-      (out, srcDir, targetDir, stringTypeName, fieldVisibilityName, cache) =>
+      (out, srcDir, targetDir, cache) =>
         val cachedCompile = FileFunction.cached(cache / "avro",
           inStyle = FilesInfo.lastModified,
           outStyle = FilesInfo.exists) { (in: Set[File]) =>
-            compile(srcDir, targetDir, out.log, stringTypeName, fieldVisibilityName)
+            compile(srcDir, targetDir, out.log)
           }
         cachedCompile((srcDir ** "*.av*").get.toSet).toSeq
     }
