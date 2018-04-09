@@ -16,9 +16,8 @@ libraryDependencies ++= Seq(
 )
 
 licenses += ("BSD 3-Clause", url("https://github.com/sbt/sbt-avro/blob/master/LICENSE"))
-publishMavenStyle := true
 bintrayOrganization := Some("tresata")
-bintrayRepository := "maven"
+bintrayRepository := "sbt-plugin"
 bintrayVcsUrl := Some("git@github.com:tresata-opensource/spark-avro.git")
 bintrayPackage := name.value
 bintrayReleaseOnPublish := false
