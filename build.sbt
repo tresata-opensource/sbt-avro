@@ -18,7 +18,7 @@ libraryDependencies ++= Seq(
 licenses += ("BSD 3-Clause", url("https://github.com/sbt/sbt-avro/blob/master/LICENSE"))
 bintrayOrganization := Some("tresata")
 bintrayRepository := "sbt-plugin"
-bintrayVcsUrl := Some("git@github.com:tresata-opensource/spark-avro.git")
+bintrayVcsUrl := Some("https://github.com/tresata-opensource/sbt-avro")
 bintrayPackage := name.value
 bintrayReleaseOnPublish := false
 
